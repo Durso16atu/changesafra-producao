@@ -43,12 +43,12 @@ def carregar_dados_meteorologicos():
         st.error(f"Arquivo mestre '{caminho_completo}' nao encontrado.")
         return None
     except Exception as e:
-        st.error(f"Erro ao carregar dados meteorolÛgicos: {e}")
+        st.error(f"Erro ao carregar dados meteorol√≥gicos: {e}")
         return None
 
 @st.cache_data
 def carregar_dados_produtividade():
-    """Carrega os dados de produtividade da cana-de-aÁ˙car."""
+    """Carrega os dados de produtividade da cana-de-a√ß√∫car."""
     try:
         caminho_arquivo = "SerieHistoricaCana.txt"
         df = pd.read_csv(caminho_arquivo, sep=';', encoding='latin1')
@@ -67,20 +67,20 @@ def carregar_dados_produtividade():
 
 @st.cache_data(ttl=3600)
 def buscar_coordenadas(query):
-    """FunÁ„o cacheada e robusta para buscar coordenadas de uma localizaÁ„o."""
+    """Fun√ß√£o cacheada e robusta para buscar coordenadas de uma localiza√ß√£o."""
     try:
         geolocator = Nominatim(user_agent="change_safra_app_v4", timeout=10)
         location = geolocator.geocode(query)
         if location: return (location.address, location.latitude, location.longitude)
         return (None, None, None)
     except GeocoderServiceError as e:
-        st.sidebar.error(f"ServiÁo de geolocalizaÁ„o indisponÌvel: {e}.")
+        st.sidebar.error(f"Servi√ßo de geolocaliza√ß√£o indispon√≠vel: {e}.")
         return (None, None, None)
     except Exception as e:
-        st.sidebar.error(f"Erro ao buscar localizaÁ„o: {e}")
+        st.sidebar.error(f"Erro ao buscar localiza√ß√£o: {e}")
         return (None, None, None)
 
-# --- Bloco 2: FUN«’ES DE AN¡LISE E MODELAGEM ---
+# --- Bloco 2: FUN√á√ïES DE AN√ÅLISE E MODELAGEM ---
 
 def analisar_eventos_extremos(df_meteorologico, fase):
     fases = {'Brotacao': (9, 11), 'Desenvolvimento': (12, 4), 'Maturacao': (5, 8)}
@@ -111,12 +111,12 @@ def executar_amostragem_gev(data_tuple, progress_bar):
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=[data])
     for i, _ in enumerate(sampler.sample(p0, iterations=n_iter)):
         if i % 100 == 0:
-            progress_bar.progress(i / n_iter, text=f"SimulaÁ„o GEV: {i}/{n_iter} iteraÁıes")
-    progress_bar.progress(1.0, text="SimulaÁ„o GEV concluÌda!")
+            progress_bar.progress(i / n_iter, text=f"Simula√ß√£o GEV: {i}/{n_iter} itera√ß√µes")
+    progress_bar.progress(1.0, text="Simula√ß√£o GEV conclu√≠da!")
     return sampler.get_chain(discard=500, thin=15, flat=True)
 
 def executar_amostragem_logistica(X_tuple, y_tuple, progress_bar):
-    """Executa a amostragem MCMC para o modelo LogÌstico e atualiza uma barra de progresso."""
+    """Executa a amostragem MCMC para o modelo Log√≠stico e atualiza uma barra de progresso."""
     X = pd.Series(X_tuple); y = pd.Series(y_tuple)
     def log_prob(params, X_points, y_points):
         beta0, beta1 = params
@@ -131,23 +131,23 @@ def executar_amostragem_logistica(X_tuple, y_tuple, progress_bar):
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=[X, y])
     for i, _ in enumerate(sampler.sample(p0, iterations=n_iter)):
         if i % 100 == 0:
-            progress_bar.progress(i / n_iter, text=f"SimulaÁ„o LogÌstica: {i}/{n_iter} iteraÁıes")
-    progress_bar.progress(1.0, text="SimulaÁ„o LogÌstica concluÌda!")
+            progress_bar.progress(i / n_iter, text=f"Simula√ß√£o Log√≠stica: {i}/{n_iter} itera√ß√µes")
+    progress_bar.progress(1.0, text="Simula√ß√£o Log√≠stica conclu√≠da!")
     return sampler.get_chain(discard=500, thin=15, flat=True)
 
-# --- Bloco 3: FUN«’ES DE PLOTAGEM ---
+# --- Bloco 3: FUN√á√ïES DE PLOTAGEM ---
 def plotar_analise_eventos(df_analise):
     fig, axes = plt.subplots(2, 1, figsize=(10, 8))
     sns.regplot(data=df_analise, x='parametro_risco', y='var_produtividade', ax=axes[0], line_kws={"color": "#008080"})
-    axes[0].set_title('Produtividade vs. Par‚metro de Risco'); axes[0].grid(True)
+    axes[0].set_title('Produtividade vs. Par√¢metro de Risco'); axes[0].grid(True)
     sns.lineplot(data=df_analise, x='ano_agricola', y='parametro_risco', ax=axes[1], marker='o', color="#008080")
-    axes[1].set_title('SÈrie HistÛrica do Par‚metro de Risco'); axes[1].grid(True)
+    axes[1].set_title('S√©rie Hist√≥rica do Par√¢metro de Risco'); axes[1].grid(True)
     plt.tight_layout(); return fig
 
 def plotar_ajuste_gev(samples, data):
     mu, log_sigma, xi = np.median(samples, axis=0); sigma = np.exp(log_sigma)
     fig, ax = plt.subplots()
-    ax.hist(data, bins='auto', density=True, alpha=0.6, label='Dados HistÛricos')
+    ax.hist(data, bins='auto', density=True, alpha=0.6, label='Dados Hist√≥ricos')
     x_plot = np.linspace(data.min(), data.max(), 100)
     pdf_plot = genextreme.pdf(x_plot, c=-xi, loc=mu, scale=sigma)
     ax.plot(x_plot, pdf_plot, 'r-', lw=2, label='Modelo GEV Ajustado'); ax.legend(); return fig
@@ -160,7 +160,7 @@ def plotar_modelo_logistico(samples, X, y):
     ax.scatter(X, y, alpha=0.6, label='Anos com Quebra de Safra (Y=1)')
     x_range = np.linspace(X.min(), X.max(), 100)
     prob = 1 / (1 + np.exp(-(beta0 + beta1 * x_range)))
-    ax.plot(x_range, prob, 'r-', label='Curva LogÌstica Ajustada'); ax.set_title('Modelo de Perda'); ax.legend(); return fig
+    ax.plot(x_range, prob, 'r-', label='Curva Log√≠stica Ajustada'); ax.set_title('Modelo de Perda'); ax.legend(); return fig
 
 # --- Bloco 4: INTERFACE PRINCIPAL DO STREAMLIT ---
 
@@ -171,9 +171,9 @@ with col_logo:
     st.image("../processamento_dados/logo_change_safra_transparent.png", width=450)
 with col_header_text:
     st.title("ChangeSafra")
-    st.subheader("Calculadora ParamÈtrica: Cana-de-AÁ˙car")
+    st.subheader("Calculadora Param√©trica: Cana-de-A√ß√∫car")
 st.link_button("<< Voltar ao Portal Principal", "http://44.201.48.68:8506"); st.markdown("---")
-st.markdown("Esta ferramenta utiliza dados histÛricos de clima e produtividade para modelar o risco de quebras de safra de cana-de-aÁ˙car associadas a secas prolongadas (veranicos).")
+st.markdown("Esta ferramenta utiliza dados hist√≥ricos de clima e produtividade para modelar o risco de quebras de safra de cana-de-a√ß√∫car associadas a secas prolongadas (veranicos).")
 
 with st.expander("Clique para saber mais sobre a Metodologia e as Fontes dos Dados"):
     st.subheader("Dados Meteorologicos - INMET")
@@ -189,15 +189,15 @@ with st.expander("Clique para saber mais sobre a Metodologia e as Fontes dos Dad
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("<div style='text-align: center;'><b>Seguro Tradicional</b><br><br>- O pagamento È acionado por uma <b>perda real</b>.<br>- O reembolso È feito apÛs <b>avaliaÁ„o por perito</b>.<br>- A indenizaÁ„o È demorada.<br>- ApÛlice com redaÁ„o padr„o.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center;'><b>Seguro Tradicional</b><br><br>- O pagamento √© acionado por uma <b>perda real</b>.<br>- O reembolso √© feito ap√≥s <b>avalia√ß√£o por perito</b>.<br>- A indeniza√ß√£o √© demorada.<br>- Ap√≥lice com reda√ß√£o padr√£o.</div>", unsafe_allow_html=True)
         with col2:
-            st.markdown("<div style='text-align: center;'><b>Seguro ParamÈtrico (Este App)</b><br><br>- O pagamento È acionado por um <b>evento prÈ-definido</b>.<br>- O pagamento È feito com base no valor acordado.<br>- A indenizaÁ„o È r·pida.<br>- ApÛlice altamente personaliz·vel.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center;'><b>Seguro Param√©trico (Este App)</b><br><br>- O pagamento √© acionado por um <b>evento pr√©-definido</b>.<br>- O pagamento √© feito com base no valor acordado.<br>- A indeniza√ß√£o √© r√°pida.<br>- Ap√≥lice altamente personaliz√°vel.</div>", unsafe_allow_html=True)
 
 
 df_meteo_completo = carregar_dados_meteorologicos()
 
 if df_meteo_completo is not None:
-    st.sidebar.header("Passo 1: Selecione a LocalizaÁ„o")
+    st.sidebar.header("Passo 1: Selecione a Localiza√ß√£o")
 
     if 'last_processed_location' not in st.session_state: st.session_state.last_processed_location = ""
     if 'estacao_selecionada_code' not in st.session_state: st.session_state.estacao_selecionada_code = None
@@ -214,10 +214,10 @@ if df_meteo_completo is not None:
         st.session_state.df_estacoes_proximas = pd.DataFrame()
 
         query = f"{localizacao_digitada}, {estado_selecionado}, Brasil" if estado_selecionado else f"{localizacao_digitada}, Brasil"
-        with st.spinner("Buscando localizaÁ„o e estaÁıes prÛximas..."):
+        with st.spinner("Buscando localiza√ß√£o e esta√ß√µes pr√≥ximas..."):
             endereco, lat, lon = buscar_coordenadas(query)
             if lat and lon:
-                st.sidebar.success(f"LocalizaÁ„o: {endereco.split(',')[0]}")
+                st.sidebar.success(f"Localiza√ß√£o: {endereco.split(',')[0]}")
                 coordenadas_usuario = (lat, lon)
 
                 raio_graus = 2.0
@@ -226,12 +226,12 @@ if df_meteo_completo is not None:
                     df_raio['distancia'] = df_raio.apply(lambda r: geodesic((lat, lon), (r['LATITUDE'], r['LONGITUDE'])).km, axis=1)
                     st.session_state.df_estacoes_proximas = df_raio.sort_values('distancia').head(20)
                     st.session_state.estacao_selecionada_code = st.session_state.df_estacoes_proximas['CODIGO_ESTACAO'].iloc[0]
-                else: st.sidebar.warning("Nenhuma estaÁ„o encontrada neste raio.")
-            else: st.sidebar.warning("LocalizaÁ„o n„o encontrada.")
+                else: st.sidebar.warning("Nenhuma esta√ß√£o encontrada neste raio.")
+            else: st.sidebar.warning("Localiza√ß√£o n√£o encontrada.")
 
     if not st.session_state.df_estacoes_proximas.empty:
         st.sidebar.markdown("---")
-        st.sidebar.header("Passo 2: Confirme a EstaÁ„o")
+        st.sidebar.header("Passo 2: Confirme a Esta√ß√£o")
         df_estacoes = st.session_state.df_estacoes_proximas
         df_estacoes['display_name'] = df_estacoes.apply(lambda r: f"{r['NOME_ESTACAO'].title()} ({r['distancia']:.0f} km)", axis=1)
 
@@ -246,17 +246,17 @@ if df_meteo_completo is not None:
             codigo = df_estacoes[df_estacoes['display_name'] == display_name]['CODIGO_ESTACAO'].iloc[0]
             st.session_state.estacao_selecionada_code = codigo
 
-        st.sidebar.selectbox("EstaÁ„o meteorolÛgica:", lista_opcoes, index=index_selecionado, key='seletor_estacao_key', on_change=atualizar_estacao_selecionada)
+        st.sidebar.selectbox("Esta√ß√£o meteorol√≥gica:", lista_opcoes, index=index_selecionado, key='seletor_estacao_key', on_change=atualizar_estacao_selecionada)
 
     if st.session_state.get('estacao_selecionada_code'):
         st.sidebar.markdown("---")
-        st.sidebar.header("Passo 3: Execute a An·lise")
+        st.sidebar.header("Passo 3: Execute a An√°lise")
         df_meteo_estacao = df_meteo_completo[df_meteo_completo['CODIGO_ESTACAO'] == st.session_state.estacao_selecionada_code]
         fase_selecionada = st.sidebar.selectbox("Fase da Cultura:", ["Desenvolvimento", "Brotacao", "Maturacao"])
 
-        if st.sidebar.button("Executar An·lise Completa", type="primary"):
+        if st.sidebar.button("Executar An√°lise Completa", type="primary"):
             if df_meteo_estacao.empty:
-                st.error("Erro interno: DataFrame da estaÁ„o est· vazio.")
+                st.error("Erro interno: DataFrame da esta√ß√£o est√° vazio.")
             else:
                 df_prod = carregar_dados_produtividade()
                 if df_prod is not None:
@@ -267,7 +267,7 @@ if df_meteo_completo is not None:
                     df_analise.dropna(inplace=True)
 
                     if len(df_analise) < 10:
-                        st.warning(f"Dados HistÛricos Insuficientes: Apenas {len(df_analise)} anos. S„o necess·rios pelo menos 10 anos.")
+                        st.warning(f"Dados Hist√≥ricos Insuficientes: Apenas {len(df_analise)} anos. S√£o necess√°rios pelo menos 10 anos.")
                     else:
                         placeholder = st.empty()
                         data_tuple_gev = tuple(df_analise['parametro_risco'])
@@ -275,11 +275,11 @@ if df_meteo_completo is not None:
                         if cache_key_gev in st.session_state.mcmc_cache:
                             samples_gev = st.session_state.mcmc_cache[cache_key_gev]
                         else:
-                            progress_bar_gev = placeholder.progress(0, text="Iniciando simulaÁ„o GEV...")
+                            progress_bar_gev = placeholder.progress(0, text="Iniciando simula√ß√£o GEV...")
                             samples_gev = executar_amostragem_gev(data_tuple_gev, progress_bar_gev)
                             st.session_state.mcmc_cache[cache_key_gev] = samples_gev
 
-                        st.session_state.fig_corner_gev = plotar_corner(samples_gev, labels=['µ', 's', '?'])
+                        st.session_state.fig_corner_gev = plotar_corner(samples_gev, labels=['¬µ', 's', '?'])
                         mu_gev, log_sigma_gev, xi_gev = np.median(samples_gev, axis=0)
                         df_analise['prob_excedencia_gev'] = 1 - genextreme.cdf(df_analise['parametro_risco'], c=-xi_gev, loc=mu_gev, scale=np.exp(log_sigma_gev))
 
@@ -288,95 +288,95 @@ if df_meteo_completo is not None:
                         if cache_key_log in st.session_state.mcmc_cache:
                             samples_logistico = st.session_state.mcmc_cache[cache_key_log]
                         else:
-                            progress_bar_log = placeholder.progress(0, text="Iniciando simulaÁ„o LogÌstica...")
+                            progress_bar_log = placeholder.progress(0, text="Iniciando simula√ß√£o Log√≠stica...")
                             samples_logistico = executar_amostragem_logistica(data_tuple_log[0], data_tuple_log[1], progress_bar_log)
                             st.session_state.mcmc_cache[cache_key_log] = samples_logistico
 
                         placeholder.empty()
-                        st.session_state.fig_corner_logistico = plotar_corner(samples_logistico, labels=['ﬂ0', 'ﬂ1'])
+                        st.session_state.fig_corner_logistico = plotar_corner(samples_logistico, labels=['√ü0', '√ü1'])
                         st.session_state.fig_analise_eventos = plotar_analise_eventos(df_analise)
                         st.session_state.fig_gev_ajuste = plotar_ajuste_gev(samples_gev, df_analise['parametro_risco'])
                         st.session_state.fig_logistico_ajuste = plotar_modelo_logistico(samples_logistico, df_analise['prob_excedencia_gev'], df_analise['houve_perda'])
                         st.session_state.df_analise = df_analise
                         st.session_state.analise_concluida = True
 
-                    if st.session_state.get('analise_concluida'): st.success("An·lise e modelagem concluÌdas!")
+                    if st.session_state.get('analise_concluida'): st.success("An√°lise e modelagem conclu√≠das!")
 
 if st.session_state.get('analise_concluida', False):
     df_analise = st.session_state['df_analise']
 
     display_name_final = st.session_state.df_estacoes_proximas.loc[st.session_state.df_estacoes_proximas['CODIGO_ESTACAO'] == st.session_state.estacao_selecionada_code, 'display_name'].iloc[0]
-    st.header(f"Resultados para Cana-de-AÁ˙car (EstaÁ„o: {display_name_final})")
+    st.header(f"Resultados para Cana-de-A√ß√∫car (Esta√ß√£o: {display_name_final})")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Resumo e Simulador", "An·lise Clim·tica", "Modelo de Risco (GEV)", "Modelo de Perda"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Resumo e Simulador", "An√°lise Clim√°tica", "Modelo de Risco (GEV)", "Modelo de Perda"])
 
     with tab1:
         st.subheader("Simulador Interativo de Cobertura")
         col_sim_1, col_sim_2 = st.columns(2)
         with col_sim_1:
-            valor_indenizacao_input = st.number_input("1. Defina o Valor da IndenizaÁ„o (R$ / ha)", min_value=500.0, max_value=10000.0, value=2000.0, step=100.0)
+            valor_indenizacao_input = st.number_input("1. Defina o Valor da Indeniza√ß√£o (R$ / ha)", min_value=500.0, max_value=10000.0, value=2000.0, step=100.0)
         with col_sim_2:
-            gatilho_prob_input = st.slider("2. Selecione o NÌvel de Risco (Gatilho)", min_value=5, max_value=33, value=10, step=1, format="%d%%", help="Probabilidade do evento que aciona o seguro. Ex: 10% = evento de 1 em 10 anos.")
+            gatilho_prob_input = st.slider("2. Selecione o N√≠vel de Risco (Gatilho)", min_value=5, max_value=33, value=10, step=1, format="%d%%", help="Probabilidade do evento que aciona o seguro. Ex: 10% = evento de 1 em 10 anos.")
 
         gatilho_prob = gatilho_prob_input / 100.0
         periodo_retorno = int(1 / gatilho_prob) if gatilho_prob > 0 else 0
         premio_estimado = gatilho_prob * valor_indenizacao_input * 1.2
 
-        st.markdown("---"); st.subheader("Resultados da sua SimulaÁ„o")
+        st.markdown("---"); st.subheader("Resultados da sua Simula√ß√£o")
         mcol1, mcol2, mcol3 = st.columns(3)
-        mcol1.metric("IndenizaÁ„o / ha", formatar_reais(valor_indenizacao_input), help="Este È o valor em dinheiro que vocÍ recebe por hectare da sua lavoura, caso o evento de seca (o gatilho) aconteÁa. Pense nisso como o seu 'capital de giro de emergÍncia', que chega de forma r·pida para garantir que vocÍ possa cobrir seus custos, pagar funcion·rios e se preparar para a prÛxima safra sem se endividar.")
-        mcol2.metric("PrÍmio Estimado / ha", formatar_reais(premio_estimado), help="Este È o valor anual que vocÍ investe por hectare para ter a sua proteÁ„o garantida. … um custo fixo e planejado no seu orÁamento, que te protege contra uma perda muito maior e imprevisÌvel. … a troca da incerteza por tranquilidade.")
-        mcol3.metric("Gatilho (Retorno)", f"1 em {periodo_retorno} anos", help="Este È o 'coraÁ„o' do seu seguro transparente. Um gatilho de '1 em 10 anos' significa que o seguro È acionado por um nÌvel de seca t„o raro que, em mÈdia, sÛ acontece uma vez a cada 10 anos. N„o È sobre a data, mas sobre a intensidade do evento. VocÍ escolhe o qu„o severa a seca precisa ser para acionar sua proteÁ„o.")
+        mcol1.metric("Indeniza√ß√£o / ha", formatar_reais(valor_indenizacao_input), help="Este √© o valor em dinheiro que voc√™ recebe por hectare da sua lavoura, caso o evento de seca (o gatilho) aconte√ßa. Pense nisso como o seu 'capital de giro de emerg√™ncia', que chega de forma r√°pida para garantir que voc√™ possa cobrir seus custos, pagar funcion√°rios e se preparar para a pr√≥xima safra sem se endividar.")
+        mcol2.metric("Pr√™mio Estimado / ha", formatar_reais(premio_estimado), help="Este √© o valor anual que voc√™ investe por hectare para ter a sua prote√ß√£o garantida. √â um custo fixo e planejado no seu or√ßamento, que te protege contra uma perda muito maior e imprevis√≠vel. √â a troca da incerteza por tranquilidade.")
+        mcol3.metric("Gatilho (Retorno)", f"1 em {periodo_retorno} anos", help="Este √© o 'cora√ß√£o' do seu seguro transparente. Um gatilho de '1 em 10 anos' significa que o seguro √© acionado por um n√≠vel de seca t√£o raro que, em m√©dia, s√≥ acontece uma vez a cada 10 anos. N√£o √© sobre a data, mas sobre a intensidade do evento. Voc√™ escolhe o qu√£o severa a seca precisa ser para acionar sua prote√ß√£o.")
 
     with tab2:
-        st.subheader("RelaÁ„o entre Clima e Safras Passadas")
+        st.subheader("Rela√ß√£o entre Clima e Safras Passadas")
         if st.session_state.get('fig_analise_eventos'):
             st.pyplot(st.session_state.fig_analise_eventos)
-            with st.expander("Entenda este gr·fico"):
+            with st.expander("Entenda este gr√°fico"):
                 st.markdown("""
-                - **O que este gr·fico mostra?** A relaÁ„o histÛrica entre a duraÁ„o da seca (eixo horizontal) e a variaÁ„o da produtividade da safra (eixo vertical) na sua regi„o.
-                - **O que isso significa para vocÍ?** A linha de tendÍncia mostra que, para esta cultura e regi„o, secas mais longas est„o consistentemente associadas a maiores quedas de produtividade.
-                - **Como isso afeta seu seguro?** Esta correlaÁ„o È a base do seguro paramÈtrico. Ela prova que podemos usar um Ìndice de seca como um gatilho confi·vel para prever perdas e acionar sua proteÁ„o.
+                - **O que este gr√°fico mostra?** A rela√ß√£o hist√≥rica entre a dura√ß√£o da seca (eixo horizontal) e a varia√ß√£o da produtividade da safra (eixo vertical) na sua regi√£o.
+                - **O que isso significa para voc√™?** A linha de tend√™ncia mostra que, para esta cultura e regi√£o, secas mais longas est√£o consistentemente associadas a maiores quedas de produtividade.
+                - **Como isso afeta seu seguro?** Esta correla√ß√£o √© a base do seguro param√©trico. Ela prova que podemos usar um √≠ndice de seca como um gatilho confi√°vel para prever perdas e acionar sua prote√ß√£o.
                 """)
 
     with tab3:
-        st.subheader("An·lise de Risco (DistribuiÁ„o de Extremos Generalizada - GEV)")
+        st.subheader("An√°lise de Risco (Distribui√ß√£o de Extremos Generalizada - GEV)")
         if st.session_state.get('fig_gev_ajuste'):
             st.pyplot(st.session_state.fig_gev_ajuste)
-            st.caption("Ajuste do modelo matem·tico (vermelho) aos dados histÛricos (barras).")
-            with st.expander("Entenda este gr·fico"):
+            st.caption("Ajuste do modelo matem√°tico (vermelho) aos dados hist√≥ricos (barras).")
+            with st.expander("Entenda este gr√°fico"):
                 st.markdown("""
-                - **O que este gr·fico mostra?** Ele funciona como uma "rÈgua" para medir a intensidade de uma seca. A curva vermelha representa a probabilidade de ocorrerem secas de diferentes duraÁıes.
-                - **O que isso significa para vocÍ?** A cauda longa da curva para a direita mostra que secas extremamente severas, embora raras, s„o uma possibilidade real na sua regi„o.
-                - **Como isso afeta seu seguro?** O modelo GEV nos permite calcular com precis„o a probabilidade de um evento (ex: uma seca de 40 dias). … com base nesse c·lculo que definimos o "PerÌodo de Retorno" (1 em 10 anos, 1 em 20 anos) que vocÍ seleciona no simulador.
+                - **O que este gr√°fico mostra?** Ele funciona como uma "r√©gua" para medir a intensidade de uma seca. A curva vermelha representa a probabilidade de ocorrerem secas de diferentes dura√ß√µes.
+                - **O que isso significa para voc√™?** A cauda longa da curva para a direita mostra que secas extremamente severas, embora raras, s√£o uma possibilidade real na sua regi√£o.
+                - **Como isso afeta seu seguro?** O modelo GEV nos permite calcular com precis√£o a probabilidade de um evento (ex: uma seca de 40 dias). √â com base nesse c√°lculo que definimos o "Per√≠odo de Retorno" (1 em 10 anos, 1 em 20 anos) que voc√™ seleciona no simulador.
                 """)
         if st.session_state.get('fig_corner_gev'):
-            with st.expander("Ver detalhes tÈcnicos do ajuste do modelo GEV (Corner Plot)"):
+            with st.expander("Ver detalhes t√©cnicos do ajuste do modelo GEV (Corner Plot)"):
                 st.pyplot(st.session_state.fig_corner_gev)
                 st.markdown("""
-                - **O que este gr·fico mostra?** As "silhuetas" dos possÌveis valores para os par‚metros do modelo (µ, s, ?) e como eles se relacionam entre si.
-                - **O que isso significa para vocÍ?** Gr·ficos com picos bem definidos (como na diagonal) indicam que o modelo est· "confiante" sobre as caracterÌsticas do risco clim·tico da sua regi„o.
-                - **Como isso afeta seu seguro?** A confianÁa nos par‚metros garante que o c·lculo de risco (e o preÁo do seguro) È est·vel e n„o baseado em um palpite estatÌstico.
+                - **O que este gr√°fico mostra?** As "silhuetas" dos poss√≠veis valores para os par√¢metros do modelo (¬µ, s, ?) e como eles se relacionam entre si.
+                - **O que isso significa para voc√™?** Gr√°ficos com picos bem definidos (como na diagonal) indicam que o modelo est√° "confiante" sobre as caracter√≠sticas do risco clim√°tico da sua regi√£o.
+                - **Como isso afeta seu seguro?** A confian√ßa nos par√¢metros garante que o c√°lculo de risco (e o pre√ßo do seguro) √© est√°vel e n√£o baseado em um palpite estat√≠stico.
                 """)
 
     with tab4:
-        st.subheader("Modelo de Perda (Regress„o LogÌstica)")
+        st.subheader("Modelo de Perda (Regress√£o Log√≠stica)")
         if st.session_state.get('fig_logistico_ajuste'):
             st.pyplot(st.session_state.fig_logistico_ajuste)
             st.caption("A curva mostra como a probabilidade de quebra de safra aumenta com o risco.")
-            with st.expander("Entenda este gr·fico"):
+            with st.expander("Entenda este gr√°fico"):
                 st.markdown("""
-                - **O que este gr·fico mostra?** Ele conecta a probabilidade de uma seca (calculada pelo modelo GEV) com a chance real de haver uma quebra de safra.
-                - **O que isso significa para vocÍ?** A inclinaÁ„o da curva vermelha mostra o qu„o sensÌvel sua safra È a eventos de seca. Uma curva mais Ìngreme significa que mesmo secas moderadas j· aumentam drasticamente a chance de perda.
-                - **Como isso afeta seu seguro?** Este modelo È o coraÁ„o do seguro. Ele garante que o gatilho da apÛlice est· diretamente ligado ao risco real do seu negÛcio.
+                - **O que este gr√°fico mostra?** Ele conecta a probabilidade de uma seca (calculada pelo modelo GEV) com a chance real de haver uma quebra de safra.
+                - **O que isso significa para voc√™?** A inclina√ß√£o da curva vermelha mostra o qu√£o sens√≠vel sua safra √© a eventos de seca. Uma curva mais √≠ngreme significa que mesmo secas moderadas j√° aumentam drasticamente a chance de perda.
+                - **Como isso afeta seu seguro?** Este modelo √© o cora√ß√£o do seguro. Ele garante que o gatilho da ap√≥lice est√° diretamente ligado ao risco real do seu neg√≥cio.
                 """)
         if st.session_state.get('fig_corner_logistico'):
-            with st.expander("Ver detalhes tÈcnicos do ajuste do Modelo de Perda (Corner Plot)"):
+            with st.expander("Ver detalhes t√©cnicos do ajuste do Modelo de Perda (Corner Plot)"):
                 st.pyplot(st.session_state.fig_corner_logistico)
                 st.markdown("""
-                - **O que este gr·fico mostra?** As "silhuetas" dos possÌveis valores para os par‚metros do Modelo de Perda (ﬂ0, ﬂ1) que conectam o risco ‡ quebra de safra.
-                - **O que isso significa para vocÍ?** Picos bem definidos indicam que o modelo tem alta confianÁa na relaÁ„o que ele encontrou entre a seca e a perda de produtividade.
-                - **Como isso afeta seu seguro?** Garante que a "sensibilidade" da sua apÛlice ao risco clim·tico foi modelada com precis„o, resultando em um gatilho que reflete fielmente o risco real da sua lavoura.
+                - **O que este gr√°fico mostra?** As "silhuetas" dos poss√≠veis valores para os par√¢metros do Modelo de Perda (√ü0, √ü1) que conectam o risco √† quebra de safra.
+                - **O que isso significa para voc√™?** Picos bem definidos indicam que o modelo tem alta confian√ßa na rela√ß√£o que ele encontrou entre a seca e a perda de produtividade.
+                - **Como isso afeta seu seguro?** Garante que a "sensibilidade" da sua ap√≥lice ao risco clim√°tico foi modelada com precis√£o, resultando em um gatilho que reflete fielmente o risco real da sua lavoura.
                 """)
 else:
-    st.info("Aguardando carregamento dos dados meteorolÛgicos ou seleÁ„o de localizaÁ„o para iniciar a an·lise.")
+    st.info("Aguardando carregamento dos dados meteorol√≥gicos ou sele√ß√£o de localiza√ß√£o para iniciar a an√°lise.")
