@@ -1,4 +1,4 @@
-cat << 'EOF' > app.py
+
 import streamlit as st
 import requests
 import yfinance as yf
@@ -537,4 +537,3 @@ with col_f1:
 with col_f2:
     st.subheader("Seguro Parametrico para Cana-de-Acucar")
     st.link_button("Acessar Calculadora de Cana", "http://4.197.184.40:8506", use_container_width=True  )
-EOF
