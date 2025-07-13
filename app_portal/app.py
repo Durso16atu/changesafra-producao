@@ -1,4 +1,7 @@
 
+# -*- coding: utf-8 -*-
+
+
 import streamlit as st
 import requests
 import yfinance as yf
@@ -6,9 +9,9 @@ import pandas as pd
 import datetime as dt
 import plotly.graph_objects as go
 import plotly.express as px
-import os
 import re
-from PIL import Image # Importar a biblioteca Pillow para manipulação de imagens
+import io
+from google.cloud import storage
 
 # --- FUNCAO PARA FORMATAR MOEDA NO PADRAO BRASILEIRO ---
 def formatar_reais(valor):
@@ -20,8 +23,17 @@ if 'simulacao_ativa' not in st.session_state:
     st.session_state.simulacao_ativa = False
 
 # --- CONSTANTES PARA ARQUIVOS ---
-WEATHER_HISTORY_FILE = "weather_history.csv"
-ALERTAS_FILE = "alertas.csv"
+WEATHER_HISTORY_FILE = "gs://changesafra-dados/data/weather_history.csv"
+ALERTAS_FILE = "gs://changesafra-dados/data/alertas.csv"
+
+# --- URLs DOS ARQUIVOS NO CLOUD STORAGE ---
+BASE_URL = "https://storage.googleapis.com/changesafra-dados"
+LOGO_URL = f"{BASE_URL}/media/images/logo_change_safra_transparent.png"
+IMAGE_1_URL = f"{BASE_URL}/media/images/1.png"
+IMAGE_3_URL = f"{BASE_URL}/media/images/3.png"
+IMAGE_4_URL = f"{BASE_URL}/media/images/4.png"
+VIDEO_1_URL = f"{BASE_URL}/media/videos/Scene_1_the_202507041640_kbkg7.mp4"
+VIDEO_2_URL = f"{BASE_URL}/media/videos/casal_negro_satisfacao.mp4"
 
 # --- Funcoes de Backend ---
 @st.cache_data(ttl=600)
@@ -30,7 +42,7 @@ def get_weather_data(city_name, api_key):
     base_url = "http://api.openweathermap.org/data/2.5/weather?"
     complete_url = f"{base_url}q={city_name},br&appid={api_key}&units=metric&lang=pt_br"
     try:
-        response = requests.get(complete_url, timeout=5     )
+        response = requests.get(complete_url, timeout=5)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException: return None
@@ -65,6 +77,24 @@ def get_historical_commodity_data(ticker, period="1y"):
         st.error(f"Erro ao buscar dados historicos para {ticker}: {e}")
         return pd.DataFrame()
 
+def save_to_gcs(bucket_name, file_path, dataframe):
+    client = storage.Client()
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob(file_path.replace(f"gs://{bucket_name}/", ""))
+    blob.upload_from_string(dataframe.to_csv(index=False), content_type="text/csv")
+
+def load_from_gcs(bucket_name, file_path):
+    try:
+        client = storage.Client()
+        bucket = client.get_bucket(bucket_name)
+        blob = bucket.blob(file_path.replace(f"gs://{bucket_name}/", ""))
+        if blob.exists():
+            data = blob.download_as_string()
+            return pd.read_csv(io.StringIO(data.decode('utf-8')))
+        return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
+
 def save_weather_data(city, data):
     if data:
         try:
@@ -73,40 +103,32 @@ def save_weather_data(city, data):
             description = data["weather"][0]["description"]
             record = {"date": pd.to_datetime("today").strftime("%Y-%m-%d"), "city": city.lower(), "temperature": temp, "humidity": humidity, "description": description}
             df_new = pd.DataFrame([record])
-            if os.path.exists(WEATHER_HISTORY_FILE):
-                df_existing = pd.read_csv(WEATHER_HISTORY_FILE)
+            df_existing = load_from_gcs("changesafra-dados", WEATHER_HISTORY_FILE)
+            if not df_existing.empty:
                 if not ((df_existing["date"] == record["date"]) & (df_existing["city"] == record["city"])).any():
                     df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-                    df_combined.to_csv(WEATHER_HISTORY_FILE, index=False)
+                    save_to_gcs("changesafra-dados", WEATHER_HISTORY_FILE, df_combined)
             else:
-                df_new.to_csv(WEATHER_HISTORY_FILE, index=False)
+                save_to_gcs("changesafra-dados", WEATHER_HISTORY_FILE, df_new)
         except Exception as e:
             st.warning(f"Nao foi possivel salvar o historico do clima: {e}")
 
-@st.cache_data(ttl=600)
 def load_weather_history():
-    if os.path.exists(WEATHER_HISTORY_FILE):
-        return pd.read_csv(WEATHER_HISTORY_FILE)
-    return pd.DataFrame()
+    return load_from_gcs("changesafra-dados", WEATHER_HISTORY_FILE)
 
 # --- Configuracao da Pagina ---
 st.set_page_config(layout="wide", page_title="ChangeSafra - Portal")
 
-# --- Chave da API OpenWeatherMap (FIXADA NO CODIGO) ---
+# --- Chave da API OpenWeatherMap ---
 api_key = "18a6ad025df885b43fb80203ecb2f9b0"
 
 # --- Pagina Principal ---
-col1, col2 = st.columns([1, 4]) # Ajuste os valores para controlar a proporção da imagem e do texto
-
+col1, col2 = st.columns([1, 4])
 with col1:
     try:
-        # Usar o nome do arquivo do novo logo com fundo transparente
-        image = Image.open("logo_change_safra_transparent.png") # Certifique-se de que este é o nome do seu arquivo
-        st.image(image, width=150) # Ajuste a largura conforme necessário para proporcionalidade
-    except FileNotFoundError:
-        st.error("Imagem 'logo_change_safra_transparent.png' não encontrada. Certifique-se de que o arquivo está no diretório correto.")
+        st.image(LOGO_URL, width=150)
     except Exception as e:
-        st.error(f"Ocorreu um erro ao carregar a imagem: {e}")
+        st.error(f"Erro ao carregar a imagem do logo: {e}")
 
 with col2:
     st.title("ChangeSafra")
@@ -118,19 +140,13 @@ st.header("Conheça a ChangeSafra em Ação!")
 st.markdown("""
 Este vídeo ilustra a jornada de um produtor rural utilizando as soluções da ChangeSafra para transformar incerteza em segurança financeira.
 """)
-# Caminho para o arquivo de vídeo local
-video_path = "Scene_1_the_202507041640_kbkg7.mp4"
-
 try:
-    st.video(video_path)
-except FileNotFoundError:
-    st.error(f"O arquivo de vídeo '{video_path}' não foi encontrado. Certifique-se de que ele está na mesma pasta do aplicativo Streamlit.")
+    st.video(VIDEO_1_URL)
 except Exception as e:
-    st.error(f"Ocorreu um erro ao carregar o vídeo: {e}")
-
-st.markdown("---")
+    st.error(f"Erro ao carregar o vídeo de apresentação: {e}")
 
 # --- SECAO O QUE FAZEMOS ---
+st.markdown("---")
 st.header("O Que Fazemos")
 st.markdown("""
 Nos reinventamos o conceito de seguro agricola. Em vez de apolices tradicionais, complexas e burocraticas, criamos seguros parametricos inteligentes.
@@ -143,48 +159,31 @@ Na ChangeSafra, nossa missao e fortalecer o produtor rural contra a volatilidade
 # --- SECAO DE IMPACTO ---
 st.markdown("---")
 with st.expander("Nosso Compromisso com o Impacto e as ODS"):
-    st.markdown("Os Objetivos de Desenvolvimento Sustentável (ODS) da ONU são um chamado global à ação para acabar com a pobreza, proteger o meio ambiente e o clima e garantir que todas as pessoas desfrutem de paz e prosperidade. [Saiba mais](https://brasil.un.org/pt-br/sdgs ).")
-
+    st.markdown("Os Objetivos de Desenvolvimento Sustentável (ODS) da ONU são um chamado global à ação para acabar com a pobreza, proteger o meio ambiente e o clima e garantir que todas as pessoas desfrutem de paz e prosperidade. [Saiba mais](https://brasil.un.org/pt-br/sdgs).")
     st.markdown("""
     Na ChangeSafra, acreditamos que o agronegocio pode e deve ser uma forca para o bem. Somos uma **Insurtech de Impacto**, o que significa que nossa tecnologia e nosso modelo de negocio sao intencionalmente desenhados para resolver problemas socioambientais, gerando valor financeiro e social de forma integrada.
-    
     Diferente de abordagens puramente filantropicas ou de ESG (Environmental, Social, and Governance) que podem ser complementares, nosso impacto esta no **core** do que fazemos: proteger o produtor rural para garantir a sustentabilidade da producao e a resiliencia das comunidades.
     """)
-
-    # Imagem 2: "Segurança para quem Alimenta o Mundo" (Assumindo que é 4.png)
     try:
-        image_2 = Image.open("4.png") # Corrigido para 4.png
-        st.image(image_2, caption="Segurança para quem Alimenta o Mundo", use_container_width=True)
-    except FileNotFoundError:
-        st.warning("Imagem '4.png' não encontrada para a seção de Impacto. Verifique o nome do arquivo.")
+        st.image(IMAGE_4_URL, caption="Segurança para quem Alimenta o Mundo", use_container_width=True)
     except Exception as e:
         st.error(f"Erro ao carregar a imagem '4.png': {e}")
 
     st.subheader("Nossas Contribuicoes para os Objetivos de Desenvolvimento Sustentavel:")
-    
     col1, col2, col3 = st.columns(3)
-
     with col1:
         st.markdown("**1. Erradicacao da Pobreza**")
         st.markdown("Ao oferecer protecao financeira contra perdas climaticas, contribuimos para a continuidade da renda e atividade do produtor rural.")
-
     with col2:
         st.markdown("**2. Fome Zero e Agricultura Sustentavel**")
         st.markdown("Nossos seguros apoiam a resiliencia da producao agricola, contribuindo para a seguranca alimentar e promovendo praticas sustentaveis.")
-
     with col3:
         st.markdown("**13. Acao Contra a Mudanca Global do Clima**")
         st.markdown("Mitigamos os impactos financeiros de eventos climaticos extremos, ajudando os agricultores a se adaptarem às mudancas climaticas.")
-
-    # Imagem 3: "Plantando Segurança no Campo"
     try:
-        image_3 = Image.open("3.png") # Corrigido para 3.png
-        st.image(image_3, caption="Plantando Segurança no Campo", use_container_width=True)
-    except FileNotFoundError:
-        st.warning("Imagem '3.png' não encontrada para a seção de ODS. Verifique o nome do arquivo.")
+        st.image(IMAGE_3_URL, caption="Plantando Segurança no Campo", use_container_width=True)
     except Exception as e:
         st.error(f"Erro ao carregar a imagem '3.png': {e}")
-
     st.markdown("""
     ---
     Estamos comprometidos em mensurar e demonstrar o impacto real que geramos. Nosso roadmap inclui a definicao de indicadores claros e a construcao de ferramentas para garantir total transparencia sobre nossa contribuicao para um futuro mais sustentavel.
@@ -193,13 +192,8 @@ with st.expander("Nosso Compromisso com o Impacto e as ODS"):
 # --- SECAO PROPOSTA DE VALOR ---
 st.markdown("---")
 st.subheader("Nossa Proposta de Valor")
-
-# Imagem 1: "Sua Safra, Seus Dados. Sua Decisão."
 try:
-    image_1 = Image.open("1.png") # Corrigido para 1.png
-    st.image(image_1, caption="Sua Safra, Seus Dados. Sua Decisão.", use_container_width=True)
-except FileNotFoundError:
-    st.warning("Imagem '1.png' não encontrada para a seção de Proposta de Valor. Verifique o nome do arquivo.")
+    st.image(IMAGE_1_URL, caption="Sua Safra, Seus Dados. Sua Decisão.", use_container_width=True)
 except Exception as e:
     st.error(f"Erro ao carregar a imagem '1.png': {e}")
 
@@ -215,34 +209,23 @@ with col_pv2:
     st.markdown("##### Agilidade e Transparencia")
     st.markdown("Receba o suporte financeiro de forma automatica e rapida, sem burocracia, permitindo uma recuperacao imediata.")
 
-# --- SECAO DE STORYTELLING (AGORA EM EXPANDER) ---
+# --- SECAO DE STORYTELLING ---
 st.markdown("---")
 with st.expander("Nossa Teoria da Mudanca na Pratica: Uma Jornada de Resiliencia"):
     st.markdown("Para ilustrar como a ChangeSafra transforma incerteza em seguranca, acompanhe a jornada de um produtor de cafe que, como muitos no Brasil, enfrenta os desafios impostos pelo clima.")
-    
-    # Inserção do vídeo casal_negro_satisfacao.mp4
-    video_casal_path = "casal_negro_satisfacao.mp4"
     try:
-        st.video(video_casal_path)
-    except FileNotFoundError:
-        st.error(f"O arquivo de vídeo '{video_casal_path}' não foi encontrado. Certifique-se de que ele está na mesma pasta do aplicativo Streamlit.")
+        st.video(VIDEO_2_URL)
     except Exception as e:
-        st.error(f"Ocorreu um erro ao carregar o vídeo '{video_casal_path}': {e}")
-
+        st.error(f"Erro ao carregar o vídeo 'casal_negro_satisfacao.mp4': {e}")
     st.markdown("---")
-
     st.markdown("##### 1. O Desafio: A Incerteza da Safra")
     st.markdown("Um pequeno produtor de cafe em Minas Gerais vive uma preocupacao constante. A falta de chuva na epoca da florada pode significar a perda de meses de trabalho. Sem um seguro acessivel e agil, uma seca prolongada nao afeta apenas a colheita, mas o futuro de sua familia e a continuidade de seu negocio. Planejar, investir e crescer se torna uma tarefa quase impossivel com tanta incerteza.")
-
     st.markdown("##### 2. A Descoberta: O Poder da Informacao")
     st.markdown("Em busca de solucoes, ele encontra o portal da ChangeSafra. Utilizando nosso simulador de risco, ele insere os dados de sua lavoura e entende, em minutos, o impacto financeiro que uma seca severa poderia causar. Pela primeira vez, o risco deixa de ser uma abstracao e se torna um dado visivel e quantificavel, permitindo uma tomada de decisao mais informada.")
-
     st.markdown("##### 3. A Protecao: Seguranca Baseada em Dados")
     st.markdown("Ele compreende o conceito do seguro parametrico: uma apolice inteligente que nao depende de vistorias demoradas. O pagamento e acionado por um indice de seca pre-definido, medido por dados publicos e transparentes de estacoes meteorologicas. Com base nessa clareza, ele pode planejar a contratacao de uma protecao personalizada para sua fazenda, com um custo que cabe no seu orcamento.")
-
     st.markdown("##### 4. O Evento e a Resposta: A Agilidade que Transforma")
     st.markdown("Naquele ano, a seca vem forte. O indice de seca definido em sua apolice e atingido. Em poucos dias, sem precisar preencher papeis ou esperar por um perito, ele recebe a indenizacao automaticamente. O capital de giro chega no momento em que ele mais precisa, permitindo que ele cubra seus custos, mantenha seus funcionarios e se prepare para a proxima safra.")
-
     st.markdown("##### 5. O Futuro: Plantando Resiliencia")
     st.markdown("Com a seguranca financeira garantida pela indenizacao, o produtor nao apenas sobrevive a um evento climatico adverso, mas se fortalece. Com mais tranquilidade, ele agora planeja investir em tecnologias para sua lavoura, como um sistema de irrigacao mais eficiente. Esta jornada mostra como a tecnologia e a protecao certa podem transformar incerteza em oportunidade, fortalecendo o produtor e construindo um agronegocio mais sustentavel para todos.")
 
@@ -261,7 +244,7 @@ with st.form("form_simulador"):
     with col_form2:
         custo_producao_ha = st.number_input("Custo de Producao (R$/ha)", min_value=1.0, value=5000.0, step=100.0)
         preco_venda_esperado = st.number_input("Preco de Venda Esperado (R$ por saca/ton)", min_value=1.0, value=800.0, step=50.0)
-    
+
     submitted = st.form_submit_button("Simular Cenarios")
     if submitted:
         st.session_state.simulacao_ativa = True
@@ -285,7 +268,7 @@ if st.session_state.simulacao_ativa:
 
     fator_clima = 1 - (quebra_produtividade_percent / 100.0)
     fator_preco = 1 + (variacao_preco_percent / 100.0)
-    
+
     producao_total_esperada = area_plantada * produtividade_esperada
     faturamento_esperado = producao_total_esperada * preco_venda_esperado
     custo_total = area_plantada * custo_producao_ha
@@ -296,9 +279,9 @@ if st.session_state.simulacao_ativa:
     preco_simulado = preco_venda_esperado * fator_preco
     faturamento_simulado = producao_simulada * preco_simulado
     lucro_simulado = faturamento_simulado - custo_total
-    
+
     impacto_monetario = faturamento_simulado - faturamento_esperado
-    
+
     st.markdown("---")
     st.subheader("3. Resultados da Simulacao")
 
@@ -312,9 +295,9 @@ if st.session_state.simulacao_ativa:
         st.markdown(f"<h5 style='text-align: center;'>Cenario Simulado</h5>", unsafe_allow_html=True)
         st.metric("Faturamento Simulado", formatar_reais(faturamento_simulado), f"{formatar_reais(impacto_monetario)}")
         st.metric("Lucro/Prejuizo Simulado", formatar_reais(lucro_simulado))
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
     fig_bar = go.Figure(data=[
         go.Bar(name='Faturamento Esperado', x=['Resultado'], y=[faturamento_esperado], text=formatar_reais(faturamento_esperado), textposition='auto'),
         go.Bar(name='Faturamento Simulado', x=['Resultado'], y=[faturamento_simulado], text=formatar_reais(faturamento_simulado), textposition='auto')
@@ -324,17 +307,17 @@ if st.session_state.simulacao_ativa:
 
     st.markdown("---")
     st.subheader("4. Composicao Financeira do Cenario Simulado")
-    
+
     if lucro_simulado >= 0:
         if custo_total > 0 or lucro_simulado > 0:
-            dados_composicao = pd.DataFrame({'Tipo': ['Custo Total', 'Lucro Simulado'],'Valor': [custo_total, lucro_simulado]})
+            dados_composicao = pd.DataFrame({'Tipo': ['Custo Total', 'Lucro Simulado'], 'Valor': [custo_total, lucro_simulado]})
             titulo_grafico = "Composicao: Custo vs. Lucro"
             fig_pie = px.pie(dados_composicao, values='Valor', names='Tipo', title=titulo_grafico, hole=0.3)
             fig_pie.update_traces(textinfo='percent+label', textfont_size=14)
             st.plotly_chart(fig_pie, use_container_width=True)
     else:
         if custo_total > 0:
-            dados_composicao = pd.DataFrame({'Tipo': ['Parte do Custo Coberta', 'Prejuizo (Custo Nao Coberto)'],'Valor': [faturamento_simulado, abs(lucro_simulado)]})
+            dados_composicao = pd.DataFrame({'Tipo': ['Parte do Custo Coberta', 'Prejuizo (Custo Nao Coberto)'], 'Valor': [faturamento_simulado, abs(lucro_simulado)]})
             titulo_grafico = "Composicao do Custo Total: Cobertura vs. Prejuizo"
             fig_pie = px.pie(dados_composicao, values='Valor', names='Tipo', title=titulo_grafico, hole=0.3)
             fig_pie.update_traces(textinfo='percent+label', textfont_size=14)
@@ -352,23 +335,23 @@ if st.session_state.simulacao_ativa:
         lucro_sens_prod = faturamento_sens_prod - custo_total
         st.metric("Lucro com Variacao de Produtividade", formatar_reais(lucro_sens_prod))
 
-    with col2:
+    with sens_col2:
         sensibilidade_preco_percent = st.slider("Variar Preco de Venda (%)", -50, 50, 0, 1, help="Veja o impacto no lucro ao variar o preco, mantendo a produtividade original.")
         preco_sens = preco_venda_esperado * (1 + (sensibilidade_preco_percent / 100.0))
         faturamento_sens_preco = (area_plantada * produtividade_esperada) * preco_sens
         lucro_sens_preco = faturamento_sens_preco - custo_total
         st.metric("Lucro com Variacao de Preco", formatar_reais(lucro_sens_preco))
-    
+
     st.markdown("---")
     st.subheader("6. Recomendacoes Inteligentes")
 
     if lucro_simulado < 0:
         st.warning("ATENCAO: Seu cenario simulado resultou em prejuizo. Considere opcoes de seguro para mitigar riscos como este.")
-    
+
     if quebra_produtividade_percent > 20:
         st.info("INFO: Para grandes quebras de produtividade como a simulada, seguros parametricos baseados em indices de chuva podem ser uma boa opcao de protecao.")
-    
-    if lucro_simulado > lucro_esperado and quebra_produtividade_percent == 0 :
+
+    if lucro_simulado > lucro_esperado and quebra_produtividade_percent == 0:
         st.success("PARABENS: Seu cenario simulado, impulsionado pela alta de precos, mostra um lucro acima do esperado! E um bom momento para travar precos e garantir seus ganhos.")
 
     st.markdown("---")
@@ -388,25 +371,22 @@ if cidade_selecionada:
         col_m1.metric(f"Temperatura em {cidade_selecionada.title()}", f"{weather_data['main']['temp']:.1f} C")
         col_m2.metric("Condicao", weather_data['weather'][0]['description'].title())
         col_m3.metric("Umidade", f"{weather_data['main']['humidity']}%")
-        
+
         save_weather_data(cidade_selecionada, weather_data)
     else:
         st.error(f"Nao foi possivel buscar os dados do clima para '{cidade_selecionada}'. Verifique a chave da API OpenWeatherMap.")
-    
+
     st.subheader(f"Analise Historica do Clima para {cidade_selecionada.title()}")
     df_history = load_weather_history()
-    
+
     if not df_history.empty:
         df_city_history = df_history[df_history["city"] == cidade_selecionada.lower()]
         if not df_city_history.empty:
-            
             col_temp, col_hum = st.columns(2)
-
             with col_temp:
                 fig_temp = px.line(df_city_history, x="date", y="temperature", title="Historico de Temperatura", markers=True)
                 fig_temp.update_layout(yaxis_title="Temperatura (C)")
                 st.plotly_chart(fig_temp, use_container_width=True)
-
             with col_hum:
                 fig_hum = px.line(df_city_history, x="date", y="humidity", title="Historico de Umidade", markers=True)
                 fig_hum.update_layout(yaxis_title="Umidade (%)")
@@ -436,7 +416,7 @@ with st.spinner("Buscando precos..."):
             col_c1.caption(f"Original: {preco_cafe:.2f} centavos de USD/lb")
         else:
             col_c1.error("Nao foi possivel buscar a cotacao do cafe.")
-        
+
         if preco_acucar:
             preco_acucar_brl = (preco_acucar / 100) * usd_to_brl_rate
             col_c2.markdown("**Acucar (Contrato Futuro SB=F) - Preco por Libra**")
@@ -479,7 +459,6 @@ if ticker:
         )])
         fig.update_layout(title=f"Preco Historico de {selected_commodity}", xaxis_rangeslider_visible=False, yaxis_title="Preco (USD)")
         st.plotly_chart(fig, use_container_width=True)
-
     else:
         st.warning("Nao foi possivel carregar dados historicos para a commodity selecionada.")
 
@@ -491,15 +470,12 @@ st.markdown("Cadastre-se para receber alertas de precos de commodities. (Funcion
 
 with st.form("form_alertas", clear_on_submit=True):
     st.write("Preencha os dados para criar seu alerta:")
-    
     email_alerta = st.text_input("Seu melhor e-mail")
-    
     col_alerta1, col_alerta2 = st.columns(2)
     with col_alerta1:
         commodity_alerta = st.selectbox("Selecione a Commodity para o Alerta", ["Cafe", "Acucar"], key="alerta_comm")
     with col_alerta2:
         preco_alvo = st.number_input("Preco-alvo (R$)", min_value=1.0, step=1.0)
-
     submitted_alerta = st.form_submit_button("Cadastrar Alerta")
 
     if submitted_alerta:
@@ -514,26 +490,25 @@ with st.form("form_alertas", clear_on_submit=True):
                 "preco_alvo": [preco_alvo]
             }
             df_novo_alerta = pd.DataFrame(novo_alerta)
-
             try:
-                if os.path.exists(ALERTAS_FILE):
-                    df_existente = pd.read_csv(ALERTAS_FILE)
+                df_existente = load_from_gcs("changesafra-dados", ALERTAS_FILE)
+                if not df_existente.empty:
                     df_final = pd.concat([df_existente, df_novo_alerta], ignore_index=True)
                 else:
                     df_final = df_novo_alerta
-                
-                df_final.to_csv(ALERTAS_FILE, index=False)
+                save_to_gcs("changesafra-dados", ALERTAS_FILE, df_final)
                 st.success(f"Alerta cadastrado com sucesso para o e-mail: {email_alerta}")
             except Exception as e:
                 st.error(f"Ocorreu um erro ao salvar seu alerta: {e}")
 
 st.markdown("---")
 
+# --- LINKS PARA CALCULADORAS ---
 st.header("Nossas Plataformas de Analise")
 col_f1, col_f2 = st.columns(2)
 with col_f1:
     st.subheader("Seguro Parametrico para Cafe")
-    st.link_button("Acessar Calculadora de Cafe", "http://44.202.213.50:8502", use_container_width=True   )
+    st.link_button("Acessar Calculadora de Cafe", "http://44.202.213.50:8502", use_container_width=True)
 with col_f2:
     st.subheader("Seguro Parametrico para Cana-de-Acucar")
-    st.link_button("Acessar Calculadora de Cana", "http://4.197.184.40:8506", use_container_width=True  )
+    st.link_button("Acessar Calculadora de Cana", "http://4.197.184.40:8506", use_container_width=True)
