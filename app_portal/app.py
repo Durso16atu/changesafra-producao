@@ -165,7 +165,7 @@ with st.expander("Nosso Compromisso com o Impacto e as ODS"):
     Diferente de abordagens puramente filantropicas ou de ESG (Environmental, Social, and Governance) que podem ser complementares, nosso impacto esta no **core** do que fazemos: proteger o produtor rural para garantir a sustentabilidade da producao e a resiliencia das comunidades.
     """)
     try:
-        st.image(IMAGE_4_URL, caption="Segurança para quem Alimenta o Mundo", use_container_width=True)
+        st.image(IMAGE_4_URL, caption="Segurança para quem Alimenta o Mundo")
     except Exception as e:
         st.error(f"Erro ao carregar a imagem '4.png': {e}")
 
@@ -181,7 +181,7 @@ with st.expander("Nosso Compromisso com o Impacto e as ODS"):
         st.markdown("**13. Acao Contra a Mudanca Global do Clima**")
         st.markdown("Mitigamos os impactos financeiros de eventos climaticos extremos, ajudando os agricultores a se adaptarem às mudancas climaticas.")
     try:
-        st.image(IMAGE_3_URL, caption="Plantando Segurança no Campo", use_container_width=True)
+        st.image(IMAGE_3_URL, caption="Plantando Segurança no Campo")
     except Exception as e:
         st.error(f"Erro ao carregar a imagem '3.png': {e}")
     st.markdown("""
@@ -193,7 +193,7 @@ with st.expander("Nosso Compromisso com o Impacto e as ODS"):
 st.markdown("---")
 st.subheader("Nossa Proposta de Valor")
 try:
-    st.image(IMAGE_1_URL, caption="Sua Safra, Seus Dados. Sua Decisão.", use_container_width=True)
+    st.image(IMAGE_1_URL, caption="Sua Safra, Seus Dados. Sua Decisão.")
 except Exception as e:
     st.error(f"Erro ao carregar a imagem '1.png': {e}")
 
