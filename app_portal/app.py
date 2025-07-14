@@ -23,17 +23,17 @@ if 'simulacao_ativa' not in st.session_state:
     st.session_state.simulacao_ativa = False
 
 # --- CONSTANTES PARA ARQUIVOS ---
-WEATHER_HISTORY_FILE = "gs://changesafra-dados/data/weather_history.csv"
-ALERTAS_FILE = "gs://changesafra-dados/data/alertas.csv"
+WEATHER_HISTORY_FILE = "gs://changesafra-dados-changesafrastreamlit/data/weather_history.csv"
+ALERTAS_FILE = "gs://changesafra-dados-changesafrastreamlit/data/alertas.csv"
 
 # --- URLs DOS ARQUIVOS NO CLOUD STORAGE ---
-BASE_URL = "https://storage.googleapis.com/changesafra-dados"
-LOGO_URL = f"{BASE_URL}/media/images/logo_change_safra_transparent.png"
-IMAGE_1_URL = f"{BASE_URL}/media/images/1.png"
-IMAGE_3_URL = f"{BASE_URL}/media/images/3.png"
-IMAGE_4_URL = f"{BASE_URL}/media/images/4.png"
-VIDEO_1_URL = f"{BASE_URL}/media/videos/Scene_1_the_202507041640_kbkg7.mp4"
-VIDEO_2_URL = f"{BASE_URL}/media/videos/casal_negro_satisfacao.mp4"
+BASE_URL = "https://storage.googleapis.com/changesafra-midia-changesafrastreamlit"
+LOGO_URL = f"{BASE_URL}/midia/images/logo_change_safra_transparent.png"
+IMAGE_1_URL = f"{BASE_URL}/midia/images/1.png"
+IMAGE_3_URL = f"{BASE_URL}/midia/images/3.png"
+IMAGE_4_URL = f"{BASE_URL}/midia/images/4.png"
+VIDEO_1_URL = f"{BASE_URL}/midia/videos/Scene_1_the_202507041640_kbkg7.mp4"
+VIDEO_2_URL = f"{BASE_URL}/midia/videos/casal_negro_satisfacao.mp4"
 
 # --- Funcoes de Backend ---
 @st.cache_data(ttl=600)
@@ -103,18 +103,18 @@ def save_weather_data(city, data):
             description = data["weather"][0]["description"]
             record = {"date": pd.to_datetime("today").strftime("%Y-%m-%d"), "city": city.lower(), "temperature": temp, "humidity": humidity, "description": description}
             df_new = pd.DataFrame([record])
-            df_existing = load_from_gcs("changesafra-dados", WEATHER_HISTORY_FILE)
+            df_existing = load_from_gcs("changesafra-dados-changesafrastreamlit", WEATHER_HISTORY_FILE)
             if not df_existing.empty:
                 if not ((df_existing["date"] == record["date"]) & (df_existing["city"] == record["city"])).any():
                     df_combined = pd.concat([df_existing, df_new], ignore_index=True)
-                    save_to_gcs("changesafra-dados", WEATHER_HISTORY_FILE, df_combined)
+                    save_to_gcs("changesafra-dados-changesafrastreamlit", WEATHER_HISTORY_FILE, df_combined)
             else:
-                save_to_gcs("changesafra-dados", WEATHER_HISTORY_FILE, df_new)
+                save_to_gcs("changesafra-dados-changesafrastreamlit", WEATHER_HISTORY_FILE, df_new)
         except Exception as e:
             st.warning(f"Nao foi possivel salvar o historico do clima: {e}")
 
 def load_weather_history():
-    return load_from_gcs("changesafra-dados", WEATHER_HISTORY_FILE)
+    return load_from_gcs("changesafra-dados-changesafrastreamlit", WEATHER_HISTORY_FILE)
 
 # --- Configuracao da Pagina ---
 st.set_page_config(layout="wide", page_title="ChangeSafra - Portal")
@@ -491,12 +491,12 @@ with st.form("form_alertas", clear_on_submit=True):
             }
             df_novo_alerta = pd.DataFrame(novo_alerta)
             try:
-                df_existente = load_from_gcs("changesafra-dados", ALERTAS_FILE)
+                df_existente = load_from_gcs("changesafra-dados-changesafrastreamlit", ALERTAS_FILE)
                 if not df_existente.empty:
                     df_final = pd.concat([df_existente, df_novo_alerta], ignore_index=True)
                 else:
                     df_final = df_novo_alerta
-                save_to_gcs("changesafra-dados", ALERTAS_FILE, df_final)
+                save_to_gcs("changesafra-dados-changesafrastreamlit", ALERTAS_FILE, df_final)
                 st.success(f"Alerta cadastrado com sucesso para o e-mail: {email_alerta}")
             except Exception as e:
                 st.error(f"Ocorreu um erro ao salvar seu alerta: {e}")
