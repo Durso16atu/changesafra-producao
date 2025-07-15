@@ -1,0 +1,6 @@
+streamlit==1.38.0
+requests==2.32.3
+yfinance==0.2.43
+pandas==2.2.2
+plotly==5.24.1
+google-cloud-storage==2.18.2
