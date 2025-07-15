@@ -1,6 +1,8 @@
 ﻿
 # -*- coding: utf-8 -*-
 
+#puta que pariu
+
 # Testando o gatilho automatico em 14/07
 import streamlit as st
 import requests
